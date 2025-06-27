@@ -1,2 +1,36 @@
-build/**
-managed_components
+# Build output
+/build/
+/sdkconfig
+/sdkconfig.old
+/CMakeCache.txt
+/cmake-build-*
+
+# ESP-IDF generated config files
+/project_description.json
+
+# VSCode settings (if using VSCode)
+.vscode/
+
+# Python virtual environments
+venv/
+.env/
+*.pyc
+__pycache__/
+
+# Compiled binary files
+*.bin
+*.elf
+*.map
+
+# Flash image output
+*.bin
+*.hex
+
+# ESP-IDF specific temp files
+*.tmp
+*.log
+*.d
+
+
+# Managed components
+/managed_components
