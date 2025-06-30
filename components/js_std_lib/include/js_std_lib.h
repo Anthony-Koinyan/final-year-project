@@ -3,6 +3,7 @@
 
 #include "jerryscript.h"
 
+// This struct is still useful for defining the functions within a module
 typedef struct
 {
   const char *name;
@@ -10,10 +11,9 @@ typedef struct
 } js_native_function_def_t;
 
 /**
- * @brief Init JS standard library functions (e.g console, gpio etc)
- *
- * @param global_this JS value corresponsding to the `JS global this`
+ * @brief Registers all standard library native modules (e.g., console, gpio)
+ * with the JerryScript engine. This must be called before running any JS code.
  */
-void init_js_std_lib(jerry_value_t global_this);
+void register_js_std_lib(void);
 
 #endif

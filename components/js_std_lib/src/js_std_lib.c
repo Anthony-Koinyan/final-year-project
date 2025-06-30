@@ -1,34 +1,59 @@
+#include "esp_log.h"
+
 #include "jerryscript.h"
+#include "jerryscript-ext/module.h"
+
 #include "js_std_lib.h"
 #include "module_console.h"
 
-static void bind_to_global_this(const char *module_name,
-                                const js_native_function_def_t *functions,
-                                size_t function_count,
-                                jerry_value_t global_this)
-{
-  jerry_value_t module_obj = jerry_object();
+#define TAG "JS_STD_LIBRARY"
 
+/**
+ * @brief This function is called by JerryScript when `import 'console'` is evaluated.
+ *
+ * It creates the console object with its functions (log, warn, error).
+ *
+ * @return A jerry_value_t representing the module's exports (the console object).
+ */
+static jerry_value_t console_module_on_resolve(void)
+{
+  // Create the object that will be the "export" of this module
+  jerry_value_t console_obj = jerry_object();
+
+  // Get the function definitions from our console implementation
+  size_t function_count = 0;
+  const js_native_function_def_t *functions = console_module_get_functions(&function_count);
+
+  // Attach each function (log, warn, error) to the console object
   for (size_t i = 0; i < function_count; ++i)
   {
-    jerry_value_t fn = jerry_function_external(functions[i].handler);
-    jerry_value_t name = jerry_string_sz(functions[i].name);
-    jerry_value_t prop_result = jerry_object_set(module_obj, name, fn);
-    jerry_value_free(name);
-    jerry_value_free(prop_result);
-    jerry_value_free(fn);
+    jerry_value_t func_name = jerry_string_sz(functions[i].name);
+    jerry_value_t func_obj = jerry_function_external(functions[i].handler);
+    jerry_object_set(console_obj, func_name, func_obj);
+    jerry_value_free(func_name);
+    jerry_value_free(func_obj);
   }
 
-  jerry_value_t module_name_str = jerry_string_sz(module_name);
-  jerry_value_t result = jerry_object_set(global_this, module_name_str, module_obj);
-  jerry_value_free(module_name_str);
-  jerry_value_free(result);
-  jerry_value_free(module_obj);
+  return console_obj;
 }
 
-void init_js_std_lib(jerry_value_t global_this)
-{
-  size_t *console_module_size = 0;
+// This is the magic macro from JerryScript's module extension.
+// It registers our 'console' module and links it to the on_resolve callback.
+// NOTE: No semicolon at the end!
+JERRYX_NATIVE_MODULE(console, console_module_on_resolve)
 
-  bind_to_global_this("console", console_module_get_functions(console_module_size), 3, global_this);
+/**
+ * @brief Initializes all standard native modules.
+ *
+ * This function must be called BEFORE the JerryScript engine starts
+ * resolving any modules.
+ */
+void register_js_std_lib(void)
+{
+  // This calls the registration function created by the JERRYX_NATIVE_MODULE macro.
+  // The function name is derived from the module name: `console_register`.
+  console_register();
+  ESP_LOGI("NATIVE_MODULE", "Registered 'console' module.");
+
+  // When you create a 'gpio' module, you'll add 'gpio_register();' here.
 }
