@@ -1,0 +1,3 @@
+[submodule "components/jerryscript/jerry"]
+	path = components/jerryscript/jerry
+	url = https://github.com/jerryscript-project/jerryscript.git
