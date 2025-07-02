@@ -1,59 +1,50 @@
 #include "esp_log.h"
-
 #include "jerryscript.h"
-#include "jerryscript-ext/module.h"
-
 #include "js_std_lib.h"
-#include "module_console.h"
+#include "module_console.h" // For create_console_object()
 
 #define TAG "JS_STD_LIBRARY"
 
 /**
- * @brief This function is called by JerryScript when `import 'console'` is evaluated.
+ * @brief Binds a given native object to the global scope with a given name.
  *
- * It creates the console object with its functions (log, warn, error).
- *
- * @return A jerry_value_t representing the module's exports (the console object).
+ * @param global_obj The JerryScript global object.
+ * @param object_to_bind The native JavaScript object to bind.
+ * @param name The name to bind the object to.
+ * @return true on success, false on failure.
  */
-static jerry_value_t console_module_on_resolve(void)
+static bool bind_object_to_global(jerry_value_t global_obj, jerry_value_t object_to_bind, const char *name)
 {
-  // Create the object that will be the "export" of this module
-  jerry_value_t console_obj = jerry_object();
+  jerry_value_t object_name = jerry_string_sz(name);
+  jerry_value_t set_result = jerry_object_set(global_obj, object_name, object_to_bind);
+  bool success = !jerry_value_is_exception(set_result);
 
-  // Get the function definitions from our console implementation
-  size_t function_count = 0;
-  const js_native_function_def_t *functions = console_module_get_functions(&function_count);
-
-  // Attach each function (log, warn, error) to the console object
-  for (size_t i = 0; i < function_count; ++i)
+  if (!success)
   {
-    jerry_value_t func_name = jerry_string_sz(functions[i].name);
-    jerry_value_t func_obj = jerry_function_external(functions[i].handler);
-    jerry_object_set(console_obj, func_name, func_obj);
-    jerry_value_free(func_name);
-    jerry_value_free(func_obj);
+    ESP_LOGE(TAG, "Failed to bind '%s' object to global scope.", name);
   }
 
-  return console_obj;
+  jerry_value_free(set_result);
+  jerry_value_free(object_name);
+  return success;
 }
 
-// This is the magic macro from JerryScript's module extension.
-// It registers our 'console' module and links it to the on_resolve callback.
-// NOTE: No semicolon at the end!
-JERRYX_NATIVE_MODULE(console, console_module_on_resolve)
-
-/**
- * @brief Initializes all standard native modules.
- *
- * This function must be called BEFORE the JerryScript engine starts
- * resolving any modules.
- */
-void register_js_std_lib(void)
+void js_init_std_libs(void)
 {
-  // This calls the registration function created by the JERRYX_NATIVE_MODULE macro.
-  // The function name is derived from the module name: `console_register`.
-  console_register();
-  ESP_LOGI("NATIVE_MODULE", "Registered 'console' module.");
+  jerry_value_t global_obj = jerry_current_realm();
 
-  // When you create a 'gpio' module, you'll add 'gpio_register();' here.
+  // --- Bind Console Object ---
+  jerry_value_t console_obj = create_console_object();
+  if (bind_object_to_global(global_obj, console_obj, "console"))
+  {
+    ESP_LOGI(TAG, "Successfully bound 'console' object to global scope.");
+  }
+  jerry_value_free(console_obj);
+
+  // --- Add other native objects here in the future ---
+  // e.g., jerry_value_t gpio_obj = create_gpio_object();
+  //      bind_object_to_global(global_obj, gpio_obj, "gpio");
+  //      jerry_value_free(gpio_obj);
+
+  jerry_value_free(global_obj);
 }

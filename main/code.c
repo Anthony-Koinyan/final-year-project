@@ -23,7 +23,7 @@ static void mount_file_system()
 
   if (result != ESP_OK)
   {
-    ESP_LOGE("FS", "Failed to initialize SPIFFS (%s)", esp_err_to_name(result));
+    ESP_LOGE("FS", "Failed to initialise SPIFFS (%s)", esp_err_to_name(result));
     return;
   }
 

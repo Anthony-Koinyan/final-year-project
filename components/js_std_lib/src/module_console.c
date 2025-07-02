@@ -1,8 +1,12 @@
 #include "jerryscript.h"
-#include "js_std_lib.h"
+#include "jerryscript-ext/properties.h" // For jerryx_set_properties
 #include "esp_log.h"
+#include "module_console.h"
 
 #define LOG_BUFFER_SIZE 256
+#define TAG "CONSOLE_MODULE"
+
+// --- Private Handler Functions ---
 
 typedef enum
 {
@@ -11,6 +15,10 @@ typedef enum
   JS_LOG_LEVEL_ERROR
 } js_log_level_t;
 
+/**
+ * @brief Common logging logic used by console.log, .warn, and .error.
+ * It concatenates all arguments into a single string and prints to ESP_LOG.
+ */
 static void js_console_log_common(js_log_level_t level,
                                   const jerry_value_t args[],
                                   jerry_length_t argc)
@@ -25,6 +33,7 @@ static void js_console_log_common(js_log_level_t level,
     jerry_size_t str_size = jerry_string_size(str_val, JERRY_ENCODING_UTF8);
     if (offset + str_size + 1 >= LOG_BUFFER_SIZE)
     {
+      ESP_LOGW(TAG, "Log message truncated, exceeds buffer size.");
       jerry_value_free(str_val);
       break;
     }
@@ -83,17 +92,35 @@ static jerry_value_t js_console_error_handler(const jerry_call_info_t *call_info
   return jerry_undefined();
 }
 
-const js_native_function_def_t *console_module_get_functions(size_t *count)
-{
-  static const js_native_function_def_t console_fns[] = {
-      {.name = "log", .handler = js_console_log_handler},
-      {.name = "warn", .handler = js_console_warn_handler},
-      {.name = "error", .handler = js_console_error_handler}};
+// --- Public Factory Function ---
 
-  if (count)
+jerry_value_t create_console_object(void)
+{
+  // Create the empty 'console' object that will hold our functions
+  jerry_value_t console_obj = jerry_object();
+
+  // Define the properties to be added to the console object
+  jerryx_property_entry console_properties[] = {
+      JERRYX_PROPERTY_FUNCTION("log", js_console_log_handler),
+      JERRYX_PROPERTY_FUNCTION("warn", js_console_warn_handler),
+      JERRYX_PROPERTY_FUNCTION("error", js_console_error_handler),
+      JERRYX_PROPERTY_LIST_END()};
+
+  // Set all the properties on the console object in one go.
+  jerryx_register_result reg_result = jerryx_set_properties(console_obj, console_properties);
+
+  // Check for errors during registration
+  if (jerry_value_is_exception(reg_result.result))
   {
-    *count = sizeof(console_fns) / sizeof(console_fns[0]);
+    ESP_LOGE(TAG, "Failed to register console properties. Only %u succeeded.", (unsigned int)reg_result.registered);
+    // As per docs, we must clean up the entries and the error value on failure.
+    jerryx_release_property_entry(console_properties, reg_result);
+  }
+  else
+  {
+    // On success, the result is 'undefined', which we must still release.
+    jerry_value_free(reg_result.result);
   }
 
-  return console_fns;
+  return console_obj;
 }

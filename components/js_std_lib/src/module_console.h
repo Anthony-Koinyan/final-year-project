@@ -2,15 +2,17 @@
 #define MODULE_CONSOLE_H
 
 #include "jerryscript.h"
-#include "js_std_lib.h"
 
 /**
- * @brief Gets the list of native console functions.
+ * @brief Creates a new JavaScript 'console' object.
  *
- * @param count Pointer to a size_t variable that will be filled with the
- * number of functions in the returned array.
- * @return A pointer to a constant array of native function definitions.
+ * This function acts as a factory for the console object, creating the object
+ * and attaching all its methods (log, warn, error).
+ *
+ * @return A jerry_value_t representing the new console object. The caller is
+ * responsible for releasing this value with jerry_value_free(). If an error
+ * occurs during creation, the returned object may be empty.
  */
-const js_native_function_def_t *console_module_get_functions(size_t *count);
+jerry_value_t create_console_object(void);
 
 #endif
