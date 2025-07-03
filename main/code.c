@@ -49,5 +49,5 @@ void app_main(void)
   xTaskCreatePinnedToCore(js_task, "js_main_thread", 16 * 1024, NULL, 10, NULL, 1);
 
   // The rest of the system can do other things here.
-  // For this project, we just let the JS task run.
+  // For now, we just let the JS task run.
 }

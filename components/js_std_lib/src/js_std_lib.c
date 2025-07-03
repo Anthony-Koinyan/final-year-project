@@ -10,6 +10,8 @@
 
 // --- Native Module Registry ---
 
+// --- Native Module Registry ---
+
 /**
  * @brief Defines the structure for a native C module, including its exports.
  */
@@ -34,7 +36,14 @@ static const native_module_def_t native_module_registry[] = {
     // Add new native modules here
 };
 
-// (bind_object_to_global and js_init_std_libs remain the same)
+/* @brief Binds a given native object to the global scope with a given name.
+ *
+ * @param global_obj The JerryScript global object.
+ * @param object_to_bind The native JavaScript object to bind.
+ * @param name The name to bind the object to.
+ *
+ * @return true on success, false on failure.
+ */
 static bool bind_object_to_global(jerry_value_t global_obj, jerry_value_t object_to_bind, const char *name)
 {
   jerry_value_t object_name = jerry_string_sz(name);
@@ -61,9 +70,7 @@ void js_init_std_libs(void)
   jerry_value_free(global_obj);
 }
 
-// --- THE FIX IS HERE ---
-jerry_value_t
-js_get_native_module(const jerry_value_t specifier)
+jerry_value_t js_get_native_module(const jerry_value_t specifier)
 {
   jerry_size_t specifier_size = jerry_string_size(specifier, JERRY_ENCODING_UTF8);
   jerry_char_t specifier_buf[specifier_size + 1];

@@ -11,6 +11,12 @@
 
 /**
  * @brief Prints a JerryScript error value to the log for debugging.
+ *
+ * This function checks if the provided jerry_value_t is an exception. If it is,
+ * it converts the error object to a string and prints it to the ESP-IDF log
+ * with an error level.
+ *
+ * @param error_val The jerry_value_t that might be an error object.
  */
 void print_js_error(jerry_value_t error_val)
 {

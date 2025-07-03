@@ -12,22 +12,14 @@
 #define SPIFFS_DIR "/storage"
 #define MAX_PATH_LENGTH 64
 
-// static void print_js_error(jerry_value_t error_val)
-// {
-//   if (!jerry_value_is_exception(error_val))
-//     return;
-//   jerry_value_t err_val_cp = jerry_value_copy(error_val);
-//   jerry_value_t err_str_val = jerry_value_to_string(err_val_cp);
-//   jerry_size_t err_str_size = jerry_string_size(err_str_val, JERRY_ENCODING_UTF8);
-//   char err_str_buf[MAX_PATH_LENGTH];
-//   jerry_size_t copy_size = (err_str_size < MAX_PATH_LENGTH - 1) ? err_str_size : MAX_PATH_LENGTH - 1;
-//   jerry_string_to_buffer(err_str_val, JERRY_ENCODING_UTF8, (jerry_char_t *)err_str_buf, copy_size);
-//   err_str_buf[copy_size] = '\0';
-//   ESP_LOGE(TAG, "JavaScript Error: %s", err_str_buf);
-//   jerry_value_free(err_str_val);
-//   jerry_value_free(err_val_cp);
-// }
-
+/**
+ * @brief Reads a file from the SPIFFS filesystem into a newly allocated buffer.
+ *
+ * @param path The relative path to the file within the SPIFFS directory (e.g., "main.js").
+ * @param out_size Pointer to a size_t where the file size will be stored.
+ * @return A pointer to the allocated buffer with the file content, or NULL on
+ * failure. The caller is responsible for freeing this buffer.
+ */
 static unsigned char *read_file_into_buffer(const char *path, size_t *out_size)
 {
   char full_path[MAX_PATH_LENGTH];
@@ -66,8 +58,14 @@ static unsigned char *read_file_into_buffer(const char *path, size_t *out_size)
 }
 
 /**
- * @brief Checks if a module specifier looks like a file path.
- * Rule: If it starts with './', '../', or '/' OR ends with '.js', it's a file.
+ * @brief Checks if a module specifier looks like a relative file path.
+ *
+ * This heuristic determines whether a specifier should be treated as a file
+ * path or a potential native module name.
+ *
+ * @param specifier The module specifier string (e.g., "./utils.js" or "gpio").
+ * @return `true` if the specifier starts with './', '../', or '/' OR ends with
+ * '.js', otherwise `false`.
  */
 static bool is_file_specifier(const jerry_char_t *specifier)
 {
@@ -85,10 +83,29 @@ static bool is_file_specifier(const jerry_char_t *specifier)
   return false;
 }
 
-static jerry_value_t
-module_resolve_callback(const jerry_value_t specifier,
-                        const jerry_value_t referrer,
-                        void *user_p)
+/**
+ * @brief The callback given to `jerry_module_link` to resolve module dependencies.
+ *
+ * This is the heart of the module system. When JerryScript encounters an
+ * `import` statement, it calls this function with the module specifier (e.g.,
+ * "gpio" or "./my_module.js"). This function's job is to find the source for
+ * that module and return it to the engine as a new, unlinked module object.
+ *
+ * The resolution strategy is:
+ * 1. Check if the specifier looks like a file path. If not, try to resolve it
+ * as a native module using `js_get_native_module`.
+ * 2. If it is a file path, or if native resolution fails, attempt to load the
+ * corresponding file from the SPIFFS filesystem.
+ *
+ * @param specifier The module specifier string from the import statement.
+ * @param referrer The module that is doing the importing (unused).
+ * @param user_p A user-provided pointer (unused).
+ * @return A new, unlinked jerry_value_t module object on success, or a
+ * JerryScript error on failure.
+ */
+static jerry_value_t module_resolve_callback(const jerry_value_t specifier,
+                                             const jerry_value_t referrer,
+                                             void *user_p)
 {
   (void)referrer;
   (void)user_p;
@@ -98,7 +115,6 @@ module_resolve_callback(const jerry_value_t specifier,
   jerry_string_to_buffer(specifier, JERRY_ENCODING_UTF8, specifier_buf, specifier_size);
   specifier_buf[specifier_size] = '\0';
 
-  // --- NEW RESOLUTION LOGIC ---
   // 1. Check if it's a file path specifier. If not, try the native registry.
   if (!is_file_specifier(specifier_buf))
   {

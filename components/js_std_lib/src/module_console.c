@@ -15,6 +15,19 @@ typedef enum
   JS_LOG_LEVEL_ERROR
 } js_log_level_t;
 
+/**
+ * @brief The internal workhorse function for all console logging.
+ *
+ * This function takes an array of JavaScript values, converts them into a single
+ * formatted string, and prints that string to the system's serial output
+ * using the appropriate ESP-IDF log level.
+ *
+ * @param level The logging severity (JS_LOG_LEVEL_INFO, JS_LOG_LEVEL_WARN, or
+ * JS_LOG_LEVEL_ERROR) which determines the log prefix (I, W, or E).
+ * @param args An array of `jerry_value_t` arguments passed from the JavaScript
+ * call (e.g., the arguments in `console.log('value is:', 42)`).
+ * @param argc The number of arguments in the `args` array.
+ */
 static void js_console_log_common(js_log_level_t level,
                                   const jerry_value_t args[],
                                   jerry_length_t argc)
@@ -62,18 +75,46 @@ static void js_console_log_common(js_log_level_t level,
   }
 }
 
+/**
+ * @brief The C function that serves as the native backend for `console.log()`.
+ *
+ * This function is registered with the JerryScript engine and is invoked
+ * directly when `console.log()` is called in a script. It is a simple
+ * wrapper that calls `js_console_log_common` with the `JS_LOG_LEVEL_INFO` level.
+ *
+ * @param call_info_p JerryScript-specific information about the call context (unused).
+ * @param args An array of `jerry_value_t` arguments from the JavaScript call.
+ * @param argc The number of arguments in the `args` array.
+ * @return `jerry_undefined()` as `console.log` does not return a value.
+ */
 static jerry_value_t js_console_log_handler(const jerry_call_info_t *call_info_p, const jerry_value_t args[], const jerry_length_t argc)
 {
   js_console_log_common(JS_LOG_LEVEL_INFO, args, argc);
   return jerry_undefined();
 }
 
+/**
+ * @brief The C function that serves as the native backend for `console.warn()`.
+ *
+ * This function is a simple wrapper that calls `js_console_log_common` with
+ * the `JS_LOG_LEVEL_WARN` level.
+ *
+ * @return `jerry_undefined()`.
+ */
 static jerry_value_t js_console_warn_handler(const jerry_call_info_t *call_info_p, const jerry_value_t args[], const jerry_length_t argc)
 {
   js_console_log_common(JS_LOG_LEVEL_WARN, args, argc);
   return jerry_undefined();
 }
 
+/**
+ * @brief The C function that serves as the native backend for `console.error()`.
+ *
+ * This function is a simple wrapper that calls `js_console_log_common` with
+ * the `JS_LOG_LEVEL_ERROR` level.
+ *
+ * @return `jerry_undefined()`.
+ */
 static jerry_value_t js_console_error_handler(const jerry_call_info_t *call_info_p, const jerry_value_t args[], const jerry_length_t argc)
 {
   js_console_log_common(JS_LOG_LEVEL_ERROR, args, argc);
@@ -81,6 +122,18 @@ static jerry_value_t js_console_error_handler(const jerry_call_info_t *call_info
 }
 
 // --- Public Functions ---
+
+/**
+ * @brief Creates a complete JavaScript `console` object.
+ *
+ * This public function is a factory used to construct the instance of the
+ * console that is bound to the global scope, making `console.log` available
+ * everywhere without an import.
+ *
+ * @return A `jerry_value_t` representing a new JavaScript object with `log`,
+ * `warn`, and `error` properties, whose values are the respective C
+ * handler functions.
+ */
 jerry_value_t create_console_object(void)
 {
   jerry_value_t console_obj = jerry_object();
@@ -94,6 +147,20 @@ jerry_value_t create_console_object(void)
   return console_obj;
 }
 
+/**
+ * @brief The evaluation callback required for the ES Module implementation.
+ *
+ * When a script executes `import { log } from 'console'`, the JerryScript
+ * engine calls this function during the evaluation phase. Its job is to
+ * populate the module's exports by binding the C handler functions to the
+ * `log`, `warn`, and `error` names that were declared as exports in the
+ * `js_std_lib.c` registry.
+ *
+ * @param native_module The `jerry_value_t` representing the module's
+ * namespace object. This is the object that will contain
+ * all the module's exports.
+ * @return `jerry_undefined()` on success.
+ */
 jerry_value_t console_module_evaluate(const jerry_value_t native_module)
 {
   // Create function and name values
