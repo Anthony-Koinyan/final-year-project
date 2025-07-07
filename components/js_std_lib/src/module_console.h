@@ -4,16 +4,10 @@
 #include "jerryscript.h"
 
 /**
- * @brief Creates a new JavaScript 'console' object.
- *
- * This function acts as a factory for the console object, creating the object
- * and attaching all its methods (log, warn, error). This is used for binding
- * to the global object.
- *
- * @return A jerry_value_t representing the new console object. The caller is
- * responsible for releasing this value with jerry_value_free().
+ * @brief Creates a complete JavaScript `console` object and binds it to the
+ * global scope, making `console.log` available everywhere without an import.
  */
-jerry_value_t create_console_object(void);
+void console_bind_global(jerry_value_t);
 
 /**
  * @brief The evaluate callback for the native 'console' module.
@@ -24,6 +18,6 @@ jerry_value_t create_console_object(void);
  * @param native_module The jerry_value_t representing the 'console' module object.
  * @return A jerry_value_t which is undefined on success, or an error.
  */
-jerry_value_t console_module_evaluate(const jerry_value_t native_module);
+jerry_value_t console_module_evaluate(const jerry_value_t);
 
 #endif /* MODULE_CONSOLE_H */

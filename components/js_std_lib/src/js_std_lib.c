@@ -5,71 +5,67 @@
 #include "js_std_lib.h"
 #include "module_console.h"
 #include "module_gpio.h"
+#include "module_timers.h"
 
 #define TAG "JS_STD_LIBRARY"
 
 // --- Native Module Registry ---
 
-// --- Native Module Registry ---
-
 /**
- * @brief Defines the structure for a native C module, including its exports.
+ * @brief Defines the structure for a native C module that can be imported from JavaScript.
  */
 typedef struct
 {
   const char *name;                              /**< The module specifier (e.g., "gpio"). */
   jerry_native_module_evaluate_cb_t evaluate_cb; /**< The callback to populate the module's exports. */
-  const char **exports;                          /**< A NULL-terminated list of exported names. */
+  const char **exports;                          /**< A NULL-terminated list of exported function/variable names. */
   size_t export_count;                           /**< The number of exports. */
 } native_module_def_t;
 
 // Define the lists of exported names for our native modules
 const char *console_exports[] = {"log", "warn", "error"};
 const char *gpio_exports[] = {"config", "reset_pin", "get_level", "set_level"};
+const char *timers_exports[] = {"setTimeout", "clearTimeout", "setInterval", "clearInterval"};
 
 /**
- * @brief A registry of all available native modules.
+ * @brief A central registry of all available native C modules.
+ *
+ * When a JavaScript `import` statement is encountered, this registry is searched
+ * for a module with a matching name.
  */
 static const native_module_def_t native_module_registry[] = {
     {.name = "console", .evaluate_cb = console_module_evaluate, .exports = console_exports, .export_count = 3},
-    {.name = "gpio", .evaluate_cb = gpio_module_evaluate, .exports = gpio_exports, .export_count = 4}
+    {.name = "gpio", .evaluate_cb = gpio_module_evaluate, .exports = gpio_exports, .export_count = 4},
+    {.name = "timers", .evaluate_cb = timers_module_evaluate, .exports = timers_exports, .export_count = 4}
     // Add new native modules here
 };
 
-/* @brief Binds a given native object to the global scope with a given name.
+/**
+ * @brief Initializes standard JavaScript libraries and binds them to the global scope.
  *
- * @param global_obj The JerryScript global object.
- * @param object_to_bind The native JavaScript object to bind.
- * @param name The name to bind the object to.
- *
- * @return true on success, false on failure.
+ * This function is called once during runtime initialization to make common
+ * functions like `console.log` and `setTimeout` globally available.
  */
-static bool bind_object_to_global(jerry_value_t global_obj, jerry_value_t object_to_bind, const char *name)
-{
-  jerry_value_t object_name = jerry_string_sz(name);
-  jerry_value_t set_result = jerry_object_set(global_obj, object_name, object_to_bind);
-  bool success = !jerry_value_is_exception(set_result);
-  if (!success)
-  {
-    ESP_LOGE(TAG, "Failed to bind '%s' object to global scope.", name);
-  }
-  jerry_value_free(set_result);
-  jerry_value_free(object_name);
-  return success;
-}
-
 void js_init_std_libs(void)
 {
   jerry_value_t global_obj = jerry_current_realm();
-  jerry_value_t console_obj = create_console_object();
-  if (bind_object_to_global(global_obj, console_obj, "console"))
-  {
-    ESP_LOGI(TAG, "Successfully bound 'console' object to global scope.");
-  }
-  jerry_value_free(console_obj);
+
+  console_bind_global(global_obj);
+  timers_bind_global(global_obj);
+
   jerry_value_free(global_obj);
 }
 
+/**
+ * @brief Resolves a module specifier against the native module registry.
+ *
+ * This function is the core of the native module resolver. It is called by the
+ * JerryScript engine when it needs to resolve an `import` declaration. It searches
+ * the `native_module_registry` for a matching module name.
+ *
+ * @param specifier The module name (e.g., "gpio") as a JerryScript string.
+ * @return A `jerry_native_module_t` if found, or a JerryScript error otherwise.
+ */
 jerry_value_t js_get_native_module(const jerry_value_t specifier)
 {
   jerry_size_t specifier_size = jerry_string_size(specifier, JERRY_ENCODING_UTF8);

@@ -124,27 +124,28 @@ static jerry_value_t js_console_error_handler(const jerry_call_info_t *call_info
 // --- Public Functions ---
 
 /**
- * @brief Creates a complete JavaScript `console` object.
- *
- * This public function is a factory used to construct the instance of the
- * console that is bound to the global scope, making `console.log` available
- * everywhere without an import.
- *
- * @return A `jerry_value_t` representing a new JavaScript object with `log`,
- * `warn`, and `error` properties, whose values are the respective C
- * handler functions.
+ * @brief Creates a complete JavaScript `console` object and binds it to the
+ * global scope, making `console.log` available everywhere without an import.
  */
-jerry_value_t create_console_object(void)
+void console_bind_global(jerry_value_t global)
 {
+  // Create console object
   jerry_value_t console_obj = jerry_object();
-  jerryx_property_entry console_properties[] = {
+
+  jerryx_property_entry props[] = {
       JERRYX_PROPERTY_FUNCTION("log", js_console_log_handler),
       JERRYX_PROPERTY_FUNCTION("warn", js_console_warn_handler),
       JERRYX_PROPERTY_FUNCTION("error", js_console_error_handler),
       JERRYX_PROPERTY_LIST_END()};
 
-  jerryx_set_properties(console_obj, console_properties);
-  return console_obj;
+  jerryx_set_properties(console_obj, props);
+
+  // Attach it to the global object
+  jerry_value_t name = jerry_string_sz("console");
+  jerry_object_set(global, name, console_obj);
+
+  jerry_value_free(name);
+  jerry_value_free(console_obj);
 }
 
 /**

@@ -1,24 +1,23 @@
 #ifndef JS_STD_LIB_H
 #define JS_STD_LIB_H
 
-#include "jerryscript.h"
-
 /**
- * @brief Initialises and binds standard libraries to the global object.
- * Currently, this only binds the 'console' object for convenience.
+ * @brief Initializes standard JavaScript libraries and binds them to the global scope.
+ *
+ * This function is called once during runtime initialization to make common
+ * functions like `console.log` and `setTimeout` globally available.
  */
 void js_init_std_libs(void);
 
 /**
- * @brief Attempts to find and create a native module by its specifier name.
+ * @brief Resolves a module specifier against the native module registry.
  *
- * This function searches a predefined registry of native modules. If a module
- * with the given specifier is found, it constructs a new jerry_value_t native
- * module object and returns it.
+ * This function is the core of the native module resolver. It is called by the
+ * JerryScript engine when it needs to resolve an `import` declaration. It searches
+ * the `native_module_registry` for a matching module name.
  *
- * @param specifier The name of the module to find (e.g., "gpio").
- * @return A new jerry_value_t native module on success.
- * An exception value if the module is not found in the native registry.
+ * @param specifier The module name (e.g., "gpio") as a JerryScript string.
+ * @return A `jerry_native_module_t` if found, or a JerryScript error otherwise.
  */
 jerry_value_t js_get_native_module(const jerry_value_t specifier);
 

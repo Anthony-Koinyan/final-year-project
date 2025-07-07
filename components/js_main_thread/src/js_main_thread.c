@@ -1,23 +1,19 @@
 #include "freertos/FreeRTOS.h"
-#include "esp_log.h"
+#include "freertos/queue.h"
 #include "jerryscript.h"
+#include "esp_log.h"
 
+#include "js_main_thread.h"
 #include "js_std_lib.h"
 #include "js_module_resolver.h"
-#include "js_main_thread.h"
+#include "js_event.h"
+#include "js_timers.h"
 
 #define TAG "JS_THREAD"
 #define MAX_LOG_LENGTH 64
 
-/**
- * @brief Prints a JerryScript error value to the log for debugging.
- *
- * This function checks if the provided jerry_value_t is an exception. If it is,
- * it converts the error object to a string and prints it to the ESP-IDF log
- * with an error level.
- *
- * @param error_val The jerry_value_t that might be an error object.
- */
+QueueHandle_t js_event_queue = NULL;
+
 void print_js_error(jerry_value_t error_val)
 {
   if (!jerry_value_is_exception(error_val))
@@ -40,23 +36,64 @@ void print_js_error(jerry_value_t error_val)
   jerry_value_free(err_str_val);
 }
 
+static void js_dispatch_event(const js_event_t *event)
+{
+  switch (event->type)
+  {
+  case JS_EVENT_TIMER:
+
+    if (!js_timers_dispatch(event->handle_id))
+    {
+      ESP_LOGW(TAG, "Unknown timer handle %lu", event->handle_id);
+    }
+    break;
+
+  case JS_EVENT_GPIO:
+    ESP_LOGI(TAG, "[EVENT] GPIO event, handle=%lu", event->handle_id);
+    break;
+
+  default:
+    ESP_LOGW(TAG, "[EVENT] Unknown type=%d", event->type);
+    break;
+  }
+}
+
 void js_task(void *params)
 {
   // 1. Initialise JerryScript engine
   jerry_init(JERRY_INIT_EMPTY);
 
-  // 3. Initialise and bind standard libraries (like global 'console').
+  // 2. Initialise and bind standard libraries (like global 'console').
   js_init_std_libs();
 
-  // 4. Start the application by resolving and running the main.js module.
+  // 3. Initialise timers
+  js_timers_init();
+
+  // 4. Create a queue that can hold up to 8 events
+  js_event_queue = xQueueCreate(8, sizeof(js_event_t));
+  if (js_event_queue == NULL)
+  {
+    ESP_LOGE(TAG, "Failed to create JS event queue");
+    vTaskDelete(NULL);
+  }
+
+  // 5. Start the application by resolving and running the main.js module.
   ESP_LOGI(TAG, "Starting execution of main.js module...");
   js_run_main_module();
 
-  // 5. Idle loop
-  ESP_LOGI(TAG, "Main module finished. Entering idle loop.");
+  // 6. Event-driven loop
+  ESP_LOGI(TAG, "Main module finished. Entering event loop.");
+  js_event_t event;
   while (1)
   {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    // Block indefinitely until an event arrives
+    if (xQueueReceive(js_event_queue, &event, portMAX_DELAY) == pdTRUE)
+    {
+      js_dispatch_event(&event);
+    }
+
+    // Run promises:
+    jerry_run_jobs();
   }
 
   // Final cleanup (will not be reached in the current loop)
