@@ -11,7 +11,7 @@
 
 static void mount_file_system()
 {
-  ESP_LOGI("FS", "Initializing SPIFFS");
+  ESP_LOGI("FS", "Initialising SPIFFS");
 
   esp_vfs_spiffs_conf_t config = {
       .base_path = "/storage",
