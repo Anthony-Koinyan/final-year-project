@@ -8,6 +8,7 @@
 #include "js_module_resolver.h"
 #include "js_event.h"
 #include "js_timers.h"
+#include "js_gpio.h"
 
 #define TAG "JS_THREAD"
 #define MAX_LOG_LENGTH 64
@@ -49,7 +50,9 @@ static void js_dispatch_event(const js_event_t *event)
     break;
 
   case JS_EVENT_GPIO:
-    ESP_LOGI(TAG, "[EVENT] GPIO event, handle=%lu", event->handle_id);
+    ESP_LOGD(TAG, "[EVENT] GPIO event for pin %lu", event->handle_id);
+    js_gpio_dispatch_event((js_event_t *)event); // Forward to the GPIO module's dispatcher
+    break;
     break;
 
   default:

@@ -7,7 +7,7 @@ console.log("--- Starting JavaScript Execution ---");
 
 console.log("The sum from testImport.js is:", sum);
 testConsole(sum);
-testTimers();
+// testTimers();
 
 const BLINK_GPIO = 2; // Using GPIO2 for the built-in LED on many boards
 testGPIO(BLINK_GPIO);

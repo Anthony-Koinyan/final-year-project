@@ -1,45 +1,77 @@
-import { config, set_level, get_level, reset_pin } from "gpio";
+import { setup } from "gpio";
+import { setInterval, setTimeout, clearInterval } from "timers";
 
-export function testGPIO(BLINK_GPIO) {
-  console.log("--- Starting GPIO Tests ---");
+export function testGPIO() {
+  console.log("--- Starting GPIO API Test Script ---");
 
-  setTimeout(() => {
-    try {
-      console.log(`Resetting pin ${BLINK_GPIO}`);
-      reset_pin(BLINK_GPIO);
+  // --- Configuration ---
+  // Most ESP32 dev boards have a built-in LED on GPIO 2
+  const LED_PIN = 2;
+  // Most ESP32 dev boards have a BOOT button on GPIO 0
+  const BUTTON_PIN = 5;
 
-      console.log(`Configuring pin ${BLINK_GPIO} as output`);
+  try {
+    // --- 1. Test LED Output ---
+    console.log(`Setting up LED on GPIO ${LED_PIN}...`);
+    const led = setup(LED_PIN, { mode: "output" });
+    console.log(`LED Pin object created for pin: ${led.pin}`);
 
-      // Corresponds to gpio_config_t
-      const gpioConfig = {
-        pin_bit_mask: 1 << BLINK_GPIO,
-        mode: 3,
-        pull_up_en: 0,
-        pull_down_en: 0,
-        intr_type: 0,
-      };
+    let ledState = false;
+    const blinker = setInterval(() => {
+      ledState = !ledState;
+      led.write(ledState);
+      console.log(`LED state written. Reading back: ${led.read()}`);
+    }, 1000);
 
-      config(gpioConfig);
+    console.log("LED should now be blinking every second.");
 
-      console.log("Previous level for pin", BLINK_GPIO, get_level(BLINK_GPIO));
-      console.log(`Toggling pin ${BLINK_GPIO} every 1 second for 20 seconds`);
+    // --- 2. Test Button Input & Interrupt ---
+    console.log(`Setting up Button on GPIO ${BUTTON_PIN} with interrupt...`);
+    const button = setup(BUTTON_PIN, {
+      mode: "input",
+      pullMode: "pullup", // Use internal pull-up resistor
+      interrupt: "falling", // Trigger on button press (high to low)
+      debounce: 100,
+    });
 
-      const i = setInterval(() => {
-        if (get_level(BLINK_GPIO)) {
-          set_level(BLINK_GPIO, 0);
-        } else {
-          set_level(BLINK_GPIO, 1);
-        }
+    let pressCount = 0;
+    button.attachISR(() => {
+      pressCount++;
+      console.log(`!!! Button Pressed! (Count: ${pressCount})`);
+    });
+    console.log("Interrupt attached. Press the BOOT button to test.");
 
-        console.log("Current level for pin", BLINK_GPIO, get_level(BLINK_GPIO));
-      }, 3000);
+    // --- 3. Test Automatic Cleanup ---
+    const TEST_DURATION_MS = 30000;
+    console.log(
+      `--- Test will run for ${
+        TEST_DURATION_MS / 1000
+      } seconds before cleanup ---`
+    );
 
-      setTimeout(() => {
-        clearInterval(i);
-        console.log("--- GPIO Tests Complete ---");
-      }, 25000);
-    } catch (e) {
-      console.error("An error occurred during GPIO setup:", e);
-    }
-  }, 10000);
+    setTimeout(() => {
+      console.log("--- Cleaning up all resources... ---");
+
+      // Stop the blinking
+      clearInterval(blinker);
+      console.log("Blinker interval cleared.");
+
+      // Detach the interrupt handler
+      button.detachISR();
+      console.log("Button ISR detached.");
+
+      // Close the pins, which also resets them
+      led.close();
+      console.log("LED pin closed.");
+      button.close();
+      console.log("Button pin closed.");
+
+      console.log("--- Test Finished ---");
+      console.log(
+        "The LED should be off and the button should no longer log messages."
+      );
+    }, TEST_DURATION_MS);
+  } catch (e) {
+    console.error("An error occurred during GPIO setup or execution:", e);
+  }
 }

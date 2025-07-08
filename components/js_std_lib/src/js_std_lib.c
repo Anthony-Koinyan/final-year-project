@@ -24,7 +24,7 @@ typedef struct
 
 // Define the lists of exported names for our native modules
 const char *console_exports[] = {"log", "warn", "error"};
-const char *gpio_exports[] = {"config", "reset_pin", "get_level", "set_level"};
+const char *gpio_exports[] = {"setup", /* "reset_pin", "get_level", "set_level" */};
 const char *timers_exports[] = {"setTimeout", "clearTimeout", "setInterval", "clearInterval"};
 
 /**
@@ -35,7 +35,7 @@ const char *timers_exports[] = {"setTimeout", "clearTimeout", "setInterval", "cl
  */
 static const native_module_def_t native_module_registry[] = {
     {.name = "console", .evaluate_cb = console_module_evaluate, .exports = console_exports, .export_count = 3},
-    {.name = "gpio", .evaluate_cb = gpio_module_evaluate, .exports = gpio_exports, .export_count = 4},
+    {.name = "gpio", .evaluate_cb = gpio_module_evaluate, .exports = gpio_exports, .export_count = 1},
     {.name = "timers", .evaluate_cb = timers_module_evaluate, .exports = timers_exports, .export_count = 4}
     // Add new native modules here
 };
