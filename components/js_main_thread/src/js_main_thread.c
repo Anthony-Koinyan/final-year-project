@@ -42,17 +42,16 @@ static void js_dispatch_event(const js_event_t *event)
   switch (event->type)
   {
   case JS_EVENT_TIMER:
-
-    if (!js_timers_dispatch(event->handle_id))
-    {
-      ESP_LOGW(TAG, "Unknown timer handle %lu", event->handle_id);
-    }
+    // if (!js_timers_dispatch(event->handle_id))
+    // {
+    //   ESP_LOGW(TAG, "Unknown timer handle %lu", event->handle_id);
+    // }
+    js_timers_dispatch(event->handle_id);
     break;
 
   case JS_EVENT_GPIO:
     ESP_LOGD(TAG, "[EVENT] GPIO event for pin %lu", event->handle_id);
     js_gpio_dispatch_event((js_event_t *)event); // Forward to the GPIO module's dispatcher
-    break;
     break;
 
   default:
@@ -89,14 +88,16 @@ void js_task(void *params)
   js_event_t event;
   while (1)
   {
+    // Run promises:
+    jerry_run_jobs();
+
     // Block indefinitely until an event arrives
     if (xQueueReceive(js_event_queue, &event, portMAX_DELAY) == pdTRUE)
     {
       js_dispatch_event(&event);
     }
 
-    // Run promises:
-    jerry_run_jobs();
+    // TODO: handle promise rejections
   }
 
   // Final cleanup (will not be reached in the current loop)
