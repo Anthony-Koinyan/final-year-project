@@ -7,7 +7,6 @@
 #include "js_main_thread.h" // For js_event_queue and print_js_error
 
 static const char *TAG = "JS_GPIO_ENGINE";
-#define GLOBAL_DEBOUNCE_US 50000 // 50,000 microseconds = 50ms
 
 /// @brief Pool of pin states.
 static js_pin_t pins[MAX_GPIO_PINS];
