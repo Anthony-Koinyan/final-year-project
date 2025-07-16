@@ -53,6 +53,8 @@ declare module "gpio" {
 
     /**
      * Reads the current logic level of the pin.
+     * @note If the pin is not configured for input (or input and output)
+     * the returned value is always false.
      * @returns {boolean} The current level (false for low, true for high).
      */
     read(): boolean;
