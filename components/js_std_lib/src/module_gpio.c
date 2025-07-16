@@ -61,7 +61,6 @@ js_pin_write_handler(const jerry_call_info_t *call_info_p, const jerry_value_t a
 static jerry_value_t
 js_pin_attach_isr_handler(const jerry_call_info_t *call_info_p, const jerry_value_t args[], const jerry_length_t argc)
 {
-  ESP_LOGI(TAG, "JS called from ISR");
   js_pin_t *state = (js_pin_t *)jerry_object_get_native_ptr(call_info_p->this_value, &pin_native_info);
 
   if (!state || !state->in_use)
